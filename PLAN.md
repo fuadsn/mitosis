@@ -55,15 +55,19 @@ The architecture is intentionally **two-layered**: a reusable orchestration engi
 
 **Platform**: Shopify-like marketplace (fully mocked — no real Shopify integration).
 
-Five tenants representing a realistic risk-mix:
+Three tenants for the live demo (reduced from 5 to fit realistic $8–9 credit budget). Each represents a different risk profile to show the architecture's range:
 
 | Brand | Category | Risk Profile | Demo Role |
 |---|---|---|---|
-| **Wave & Stone** | Handmade jewelry | Low — mostly clean | Control group, never burns wallet |
-| **PowerPro Gear** | Fitness supplements | High — prohibited medical claims | Drives LLM-heavy spend |
-| **RetroVibe Apparel** | Vintage clothing | High — counterfeit logos | Drives vision-heavy spend |
-| **Cozy Corner Home** | Home decor + art prints | Medium — copyright issues | Mixed pipeline |
+| **Wave & Stone** | Handmade jewelry | Low — mostly clean | Control group, stays at Stage 0 the whole demo |
+| **PowerPro Gear** | Fitness supplements | High — prohibited medical claims | Secondary active (LLM-heavy), runs alongside |
 | **GlowUp Beauty** | Beauty products | High — banned ingredients, medical claims | **Kill-switch target** — surge this during demo |
+
+Mention in the close: "Same engine scales to N tenants; we ran 3 live for the demo. RetroVibe Apparel and Cozy Corner Home are in our fixtures and run identically."
+
+Fixture brands kept (used in pre-recorded segments / scripts only):
+- **RetroVibe Apparel** — vintage clothing, counterfeit logos, vision-heavy
+- **Cozy Corner Home** — home decor, copyright issues, mixed pipeline
 
 Synthetic listings live in `adapter/fixtures/` as JSON — title, description, image URL, claimed category. A mix of clearly-clean, clearly-bad, and borderline items per brand.
 
@@ -102,7 +106,9 @@ Synthetic listings live in `adapter/fixtures/` as JSON — title, description, i
 └──────────────────────────────────────────────────────────┘
 ```
 
-**Service count for full demo**: 1 control plane + 5 tenant workers + 2 addons = **8 services × $0.25 = $2.00 fixed**.
+**Service count for full demo**: 1 control plane + 3 tenant workers + 1 addon (Postgres) = **5 services × $0.25 = $1.25 fixed**.
+
+> **Budget note**: hackathon credit grants are typically $5–10, not the schema-max $50. Plan was reduced from 5 tenants + Redis to 3 tenants + Postgres-only to fit a realistic $8–9 total burn. See §11 risk register and §12 cuts.
 
 ### Engine vs Adapter Split
 
@@ -285,11 +291,15 @@ Rate limit: 1 request per email per 24h. Don't re-file — check approval status
 | **Wed AM** | Final run-through, fix-only, no new features | Full demo executes live end-to-end without intervention. |
 | **Wed PM** | Submit | Submission includes: repo link, demo video link (backup), README with 5-min pitch summary. |
 
-**Cut list if we slip** (in order):
-1. Drop Redis addon — use Postgres for fiscal counters (slightly slower, fewer moving parts)
-2. Drop multi-tenant demo — show 2 tenants instead of 5
-3. Drop Tasks API live integration — mock it in UI, keep the architecture diagram claim
-4. Drop graceful recovery (wallet top-up auto-climb) — demonstrate down-stage only
+**Already cut to fit $8–9 credit budget**:
+1. ~~Redis addon~~ — Postgres only for fiscal counters
+2. ~~5 tenants~~ — 3 live (Wave & Stone, PowerPro, GlowUp); other 2 in fixtures
+3. ~~Live Tasks API in demo~~ — 1–2 real submissions captured for backup video, mocked live
+
+**Cut list if we slip further** (in order):
+1. Drop graceful recovery (wallet top-up auto-climb) — demonstrate down-stage only
+2. Drop Stage 2 keyword fallback — go straight from Stage 1 to Stage 3 frozen
+3. Drop secondary tenant (PowerPro) — show 2 tenants only (control + target)
 
 **Never cut**: BuildWithLocus real deployments, wrapped API real calls, fiscal kill switch visibly firing. These are the three things the judges must see.
 
@@ -468,12 +478,14 @@ Q&A prep (2 min):
 | 1 | Wrapped API base URL differs between beta and production | M | H | Spike 2 pins it; fallback paths documented in `.env.example` |
 | 2 | Tasks API not live on beta | M | M | Architecture still claims it; UI shows mocked escalation with footnote |
 | 3 | Cold start of 1-2 min per tenant makes 5-tenant provision >10 min | H | M | Pre-provision all 5 tenants before pitch; show live spawn of ONE during demo only |
-| 4 | Gift code approval takes too long (up to 24h) | H | H | File immediately (Sun AM); $1 free tier covers Spike 1-3; Tasks spike can wait |
+| 4 | Gift code approval takes too long (up to 24h) | H | H | Filed Sun AM (ID 52606d86-...); $1 free tier covers Spike 1-3; Tasks spike can wait |
+| 4b | **Credit grant comes back at $5 not $50** (typical hackathon grant is ≤$10, schema-max ≠ approved-amount) | **H** | **H** | Plan rebuilt against $8–9 realistic budget: 3 tenants not 5, no Redis, 1–2 real Tasks calls captured for backup video and mocked live |
 | 5 | Wallet balance poll lag creates race window on spend decisions | M | M | Pre-flight balance check at layer gate; polling is ambient only |
 | 6 | Live demo deploy fails during pitch | M | H | Pre-recorded 90s backup demo as Plan B; switch within 10 seconds |
 | 7 | Vision model latency makes demo feel slow | L | M | Throttle mock listing producer to match pipeline throughput; don't flood |
-| 8 | Running over $50 gift credits | L | H | Stage 2 is ~$0 per listing; capped by staged policy by design |
+| 8 | Running over actual credit grant during dev | M | H | Use `/debug/simulate_drain` for kill-switch demo (no real burn); real spend only on actual processing; Stage 2 is ~$0/listing by design |
 | 9 | Shopify mock is too obviously fake for judges | L | L | Style the UI like Shopify Admin; call it "a Shopify-style marketplace" openly |
+| 10 | Tasks API per-call cost is undisclosed in docs; could be expensive | M | M | Capture 1–2 real submissions during dev for backup video, mock during live demo |
 
 ---
 
