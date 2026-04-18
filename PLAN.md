@@ -238,18 +238,23 @@ Exact endpoint shapes live in `beta-api.paywithlocus.com/api/skills/skill.md` �
 ### Wallet + Credits
 
 ```bash
-# Gift code request (file this FIRST — up to 24h for approval, need credits to work)
+# Gift code request — FILED on 2026-04-19. Request ID: 52606d86-658f-4442-a7b7-45b60f5ea0fd
+# Approval ≤24h. Requested $50 USDC.
+#
+# NOTE: Docs claim "no auth required" for the agent-facing endpoint, but beta DOES require the API key.
+# This works:
 curl -X POST "$LOCUS_BASE_URL/api/gift-code-requests" \
+  -H "Authorization: Bearer $LOCUS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "fuadsanin2665@gmail.com",
-    "reason": "Building Sentinel — per-tenant Trust & Safety agent platform for the Paygentic BuildWithLocus hackathon (Week 2)",
+    "reason": "Building Sentinel — per-tenant Trust & Safety agent platform",
     "githubUrl": "https://github.com/fuadsn/sentinel",
     "requestedAmountUsdc": 50
   }'
 ```
 
-Rate limit: 1 request per email per 24h. Request max ($50) — we'll use most of it on demo + provisioning overhead.
+Rate limit: 1 request per email per 24h. Don't re-file — check approval status instead.
 
 ---
 
@@ -511,8 +516,8 @@ cat PLAN.md | less
 # 2. Verify .env is populated
 cat .env
 
-# 3. File gift code request (FIRST — has ~24h approval lag)
-# See §5 — Locus Primitives, Wallet + Credits section
+# 3. Gift code request already filed 2026-04-19 (ID 52606d86-658f-4442-a7b7-45b60f5ea0fd)
+#    Check approval status; if >24h and no credits, contact Locus team via Discord
 
 # 4. Run Spikes 1 → 4 in order
 bash scripts/spikes/01_auth.sh
