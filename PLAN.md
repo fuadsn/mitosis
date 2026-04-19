@@ -654,13 +654,24 @@ For the recorded backup video. Pull endpoint shape from `skill.md`, submit one t
 
 ## Open Questions for Next Session
 
-1. ⚠️ **Build API auth with beta `claw_dev_*` key** — the gating question. See Spike 0.
-2. **Wrapped API base URL** — confirm `api.paywithlocus.com` vs `beta-api.paywithlocus.com`
-3. **Tasks API endpoint shape** — pull from skill.md (only matters for backup recording)
-4. **Per-service env var injection at create time** — confirm we can pass arbitrary env vars in the `POST /v1/services` body, not via separate variables PUT (avoids extra round-trip per spawn)
-5. **Service spawn rate limits** — undocumented; Spike 3 will flush them out
-6. **GHCR pull from Locus** — confirm public GHCR pulls work; if not, push to a registry Locus prefers
-7. **`DELETE /v1/services/{id}` cascade behavior** — does it instantly tear down running containers, or schedule? Affects how fast the tree collapses visually.
+> **Update**: Stress tests on 2026-04-19 (Sun PM) resolved the critical blocker. See `STRESS_TEST_RESULTS.md` for full findings.
+
+### ✅ RESOLVED via stress tests
+
+1. ~~**Build API auth with beta key**~~ — Use `https://beta-api.buildwithlocus.com` (separate beta endpoint not in docs). Standard exchange flow works. JWT verified. `.env` updated.
+2. ~~**Wrapped API base URL**~~ — `https://beta-api.paywithlocus.com/api/wrapped/<provider>/<endpoint>`. Note: endpoint slug for Anthropic is `chat`, not `messages`. Catalog at `https://beta.paywithlocus.com/wapi/index.md`.
+3. ~~**Decision LLM reliability**~~ — Tested 5 representative tasks with Claude Haiku 4.5 at temp 0.2 — 5 of 5 correct decisions, excellent reasoning. Cost $0.017 for all 5.
+4. ~~**Demo memo quality**~~ — Three-stage chain (auditor → deep-analyzer → synthesizer) produces a professional-grade DD memo. Cost $0.045 per full chain. ROI math holds.
+5. ~~**Demo timing fits 5-min slot**~~ — Calculated ~4-5 min if spawner/Postgres/root pre-deployed. Mitigation in PLAN.md.
+
+### Still open — need session 1 spikes
+
+6. **Per-service env var injection at create time** — confirm we can pass arbitrary env vars in `POST /v1/services` body (avoids extra PUT roundtrip per spawn). Test in Spike 2.
+7. **Service spawn rate limits** — undocumented; Spike 3 will flush out by spawning 4 in quick succession.
+8. **GHCR pull from Locus** — confirm public GHCR pulls work cleanly. Test in Spike 2.
+9. **`DELETE /v1/services/{id}` cascade behavior** — instant teardown or scheduled? Affects how fast the tree collapses visually. Observe in Spike 3.
+10. **Recursive spawn from inside a worker (Spike 3)** — the only remaining architecturally critical unknown. If it fails, fall back to "central spawner orchestrates all spawns" pattern (~4 hours redesign).
+11. **Tasks API endpoint shape** — pull from skill.md (only matters for backup recording, not the live demo).
 
 ---
 
@@ -668,19 +679,20 @@ For the recorded backup video. Pull endpoint shape from `skill.md`, submit one t
 
 Salvaged from the previous (Sentinel) plan:
 
-- **Repo**: `https://github.com/fuadsn/sentinel` (will rename to `mitosis` next)
-- **API key + .env**: same beta key, unchanged
+- **Repo**: `https://github.com/fuadsn/mitosis` (renamed from sentinel)
+- **API key + .env**: same beta key, `.env` updated with correct Build API URL after stress tests
 - **Gift code request**: `52606d86-658f-4442-a7b7-45b60f5ea0fd` filed Sun, $50 asked
 - **`scripts/check_balance.sh`**: still works as-is
-- **Build API auth blocker**: confirmed during Sentinel planning, carries over as Spike 0
+- ~~Build API auth blocker~~ — RESOLVED in Sun PM stress tests
 - **Tech stack**: Python/FastAPI/ARM64/GHCR/Postgres — all unchanged
-- **GHCR setup**: still needed before Spike 2
+- **GHCR setup**: still needed before Spike 2 (Mon AM)
 
 Discarded:
 - All Shopify / T&S / per-tenant moderation logic
 - 3-tenant brand fixtures
 - Staged-degradation kill switch (Mitosis bounds via fiscal recursion, not staged degradation)
 - Engine/adapter split (Mitosis is one cohesive system, not a platform)
+- Series A investment DD demo task (replaced with codebase technical DD — naturally depth-3, real artifact, named buyer market)
 
 ---
 
