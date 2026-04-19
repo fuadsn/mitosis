@@ -4,7 +4,7 @@
 >
 > **Hackathon**: Paygentic Week 2 (BuildWithLocus). **Submission**: Wed 22 Apr. **Prize target**: 1st place → 30-min YC founder call.
 >
-> **Demo task**: Series A investment due diligence — root agent + 5 specialists writing a complete investment memo on a real startup, live on stage.
+> **Demo task**: Pre-acquisition codebase technical due diligence — root agent detects the tech stacks in a target repo, deterministically spawns per-stack specialists, one specialist autonomously decides to spawn a deep-analyzer grandchild for a suspect file. Real depth-3 recursion. Output: a security + code-quality findings report.
 
 ---
 
@@ -43,61 +43,111 @@ This is `fork()` + `wait()` for the agent economy, with USDC as the bound.
 
 ## The Pitch
 
-**Hook**: *"What if every difficult task could decide for itself how big it needs to be?"*
+**Hook**: *"Pre-acquisition technical due diligence is a $200,000 engagement that takes 3 weeks. We're going to do it in 20 minutes for $20."*
 
-**Problem**: Today's agents either run as monoliths (one model, one prompt, one shot — limited by context window and token budget) or as hand-orchestrated pipelines (engineers pre-define every step). Neither scales to genuinely complex, open-ended work where the right decomposition isn't known up front.
+**Problem**: When a company acquires another, they pay specialist firms (Shea & Company, Lincoln, ICX) to audit the target's codebase — security posture, dependency risks, code quality, key-person dependencies. The work decomposes naturally (per stack, per file, per concern) but the decomposition shape changes with every codebase. You can't pre-script it. So firms throw analysts at it manually for weeks.
 
-**Solution**: Mitosis lets agents **decide their own structure**. Submit a task with a budget. The root agent introspects: *"Can I do this in one pass for $X, or should I split into specialists?"* If it splits, it deploys child agents on Locus, hands each a sub-task and a sub-budget, and waits. Children make the same decision recursively.
+**Solution**: Mitosis is a recursive autonomous orchestrator. Submit a target repo with a budget. The root agent scans the repo manifest, **deterministically** spawns one specialist per detected stack (Python, JS, Docker, GitHub Actions). Each specialist then **autonomously decides via LLM** whether to execute directly or to spawn a deep-analyzer grandchild for a specific file. Some branches go deep, others stay shallow — driven by what the agent actually finds.
+
+Every agent runs as its own deployed service on BuildWithLocus, holds its own portion of the parent's wallet, and self-terminates when done.
 
 **Why Locus is the only platform that makes this work**:
-- BuildWithLocus turns a service deployment into an API call — agents *can* spawn agents
-- PayWithLocus gives every agent a real wallet — fiscal bounding is enforceable, not just simulated
-- Wrapped APIs are pay-per-call USDC — costs are knowable at decision time
-- Tasks API extends the recursion to humans for branches that exceed agent capability
+- **BuildWithLocus** turns a service deployment into an API call — agents *can* spawn agents
+- **PayWithLocus** gives every agent a real wallet — fiscal bounding is enforceable, not just simulated
+- **Wrapped APIs** are pay-per-call USDC — costs are knowable at decision time, so the split-vs-execute economics are real
 
 Three Locus primitives, one substrate for autonomous decomposition.
+
+### Business case (the buyer)
+
+| | Manual incumbent | Mitosis |
+|---|---|---|
+| Provider | Shea & Co / ICX / Lincoln | Mitosis platform |
+| Time | 2–4 weeks | 20 minutes |
+| Cost | $50,000 – $200,000 | $20 |
+| Output | DD report PDF | DD report PDF (same shape) |
+| Scalability | Limited by analyst headcount | Limited only by Locus capacity |
+
+Initial customer profile: corporate development teams at PE / strategic acquirers running >5 deals/year. Secondary: cyber-insurance underwriters needing pre-policy code risk scores. Tertiary: any dev team auditing a third-party dependency before adoption.
 
 ---
 
 ## The Demo Task
 
-**Series A Investment Due Diligence**
+**Pre-Acquisition Codebase Technical Due Diligence**
 
-Submit: *"Analyze [Startup Name] (website [URL]) for a $5M Series A investment. Budget: $5 USDC."*
+Submit: *"Run technical due diligence on [target-repo URL]. Output: security posture, code-quality concerns, dependency risks. Budget: $5 USDC."*
 
-**Expected tree** (live demo, ~3 min total):
+### Why this task — and not Series A investment DD
+
+The original Series A DD task fakes depth-2 (a "Market Analyst spawns TAM/SAM/SOM" is contrived — those aren't real sub-agents in real DD). Codebase technical DD has *natural* depth-3 driven by structure: repo → stack → suspect file. Each level has a legitimate reason to split.
+
+It also has a **real, named buyer market**: pre-acquisition technical DD is a $50k–$200k engagement typically run by firms like Shea & Company, ICX, or Lincoln International over 2–4 weeks. We do the same deliverable in 20 min for $20 in compute.
+
+### Expected tree (live demo)
 
 ```
-                       ┌─────────────────────────┐
-                       │  ROOT (DD Coordinator)  │
-                       │  Budget: $5.00          │
-                       │  Retains: $1.00         │
-                       └────────────┬────────────┘
-                                    │
-       ┌──────────────┬─────────────┼─────────────┬──────────────┐
-       ▼              ▼             ▼             ▼              ▼
-┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-│ Market   │   │ Team     │   │ Tech     │   │ Financial│   │ Compet.  │
-│ Analyst  │   │ Analyst  │   │ Analyst  │   │ Analyst  │   │ Analyst  │
-│ $0.80    │   │ $0.80    │   │ $0.80    │   │ $0.80    │   │ $0.80    │
-└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+                           ┌──────────────────────────┐
+                           │  ROOT — DD Coordinator   │
+                           │  Scans repo manifest     │
+                           │  Detects stacks present  │
+                           │  Budget: $5              │
+                           └────────────┬─────────────┘
+                                        │ DETERMINISTIC SPLIT
+                                        │ (one child per stack detected)
+              ┌──────────────┬──────────┼──────────┬───────────────┐
+              ▼              ▼          ▼          ▼               ▼
+        ┌──────────┐   ┌──────────┐  ┌────────┐  ┌─────────┐
+        │ Python   │   │ JS       │  │ Docker │  │ GHA     │
+        │ Auditor  │   │ Auditor  │  │ Auditor│  │ Auditor │
+        │ $0.80    │   │ $0.80    │  │ $0.80  │  │ $0.80   │
+        └────┬─────┘   └────┬─────┘  └───┬────┘  └────┬────┘
+             │              │            │            │
+             │ LLM-DECIDED  │ LLM says   │ LLM says   │ LLM says
+             │ SPLIT        │ "execute"  │ "execute"  │ "execute"
+             │              │            │            │
+             ▼              ▼            ▼            ▼
+        ┌──────────┐    (direct      (direct       (direct
+        │ auth.py  │     execute)     execute)      execute)
+        │ Deep     │
+        │ Analyzer │
+        │ $0.40    │
+        └──────────┘
+
+  Total: 6 services, depth 3, fixed cost $1.50, wrapped APIs ~$2-3
 ```
 
-Each specialist:
-1. Calls **Exa** (wrapped) to search relevant content for its angle
-2. Calls **Anthropic Claude Haiku** (wrapped) to reason over results
-3. Reports a structured finding back to root
+### The two-mechanism honesty demo
 
-Root synthesizes a one-page investment memo in markdown. Memo is the **demo artifact** — judges see a real, structured output.
+The split decision is real — proven by showing **two different mechanisms** producing two different outcomes:
 
-**Why this task wins for Week 2**:
-- Naturally decomposes — VCs in the room recognize the workflow instantly
-- Visible artifact (memo) at the end — not just architecture, but output
-- Each level of the tree is real Locus deployments — BuildWithLocus is the substrate, not an afterthought
-- Real-world ROI is immediately legible (a junior analyst doing this manually = 4 hours of work)
+| Level | Mechanism | Demo proof |
+|---|---|---|
+| Root → 4 stack specialists | **Deterministic** (file-extension scan triggers per-stack spawn) | Show the rule firing — "Python files detected → spawn Python auditor" |
+| Python specialist → auth.py grandchild | **LLM-decided** (Claude reads file summaries, decides which to deep-dive) | Show Claude's actual structured output: *"app.py and routes.py look standard. auth.py uses raw SQL string interpolation in get_user_by_email() — recommend deep analysis."* |
+| JS / Docker / GHA specialists | **LLM-decided** but Claude says "execute" | Show Claude's reasoning explicitly choosing NOT to split — proves the decision isn't always-yes |
 
-**Backup tree** (recorded offline for the polish video):
-- Deeper variant where one of the specialist children further splits into grandchildren (e.g., Market Analyst spawns 3 grandchildren — TAM, SAM, SOM). Demonstrates depth-2 recursion.
+This is the answer to the *"how do we know the autonomy is real?"* question every sharp judge will ask.
+
+### Per-specialist work
+
+Each stack auditor:
+1. Lists files matching its scope (via repo file tree fetched once at root)
+2. Reads a sample of file contents (wrapped Anthropic for code reasoning)
+3. Runs decide() — if Claude flags a file as suspect, spawn a deep-analyzer grandchild
+4. Either executes its findings directly or synthesizes child findings
+5. Reports structured findings to root
+
+Root synthesizes a markdown DD report covering: security posture, dependency risks, code quality, key-file concerns. Report is the **demo artifact** — judges see a real, audit-grade document.
+
+### Demo target repo
+
+Pick a small open-source repo (~20-30 files) deliberately seeded with:
+- Multiple stacks visible (Python, JS, Docker, GHA) — guarantees the deterministic split fires
+- One file with an obvious-but-real issue (e.g., raw SQL injection vector) — guarantees the LLM-decided deep-dive fires
+- Other files that are routine — guarantees other branches choose "execute" over "split"
+
+Likely candidate: a small intentionally-vulnerable demo app like a fork of `OWASP/NodeGoat` or a custom small-repo we control. Pick during session 1.
 
 ---
 
@@ -148,10 +198,13 @@ Root synthesizes a one-page investment memo in markdown. Memo is the **demo arti
 | Spawner | 1 | $0.25 |
 | Postgres addon | 1 | $0.25 |
 | Root agent | 1 | $0.25 |
-| Specialist children | 5 | $1.25 |
+| Stack specialist children (Python, JS, Docker, GHA) | 4 | $1.00 |
+| Deep-analyzer grandchild (auth.py) | 1 | $0.25 |
 | **Total fixed** | **8** | **$2.00** |
 
-Plus wrapped API calls (~$2-3) and 1-2 Tasks API submissions for the recorded backup video (~$2-4). Lands within the realistic $8-9 hackathon credit grant.
+Plus wrapped API calls (~$2-3 for repo scan + Claude reasoning across all agents). Lands within the realistic $5-9 hackathon credit grant.
+
+Tasks API live integration deferred to post-demo polish; mocked in UI for demo.
 
 ---
 
@@ -537,19 +590,21 @@ For the recorded backup video. Pull endpoint shape from `skill.md`, submit one t
 
 | Time | Beat | Visual |
 |---|---|---|
-| 0:00–0:30 | **Hook** — *"What if a task could decide for itself how big it needs to be?"* | Black screen, single sentence |
-| 0:30–1:15 | **Problem** — monolithic agents hit context/budget walls; hand-orchestrated pipelines don't scale to open-ended work | Two failure-mode diagrams |
-| 1:15–4:00 | **Live demo** — submit "DD on [real Series A startup]" with $5 budget. Watch root deploy. Watch root decide "I need 5 specialists" — 5 services bloom on Locus dashboard. Each specialist hits Exa + Claude. Reports flow back. Root synthesizes. Memo appears on screen. Tree collapses as agents self-delete. | Split-screen: live tree visualizer + the actual investment memo materializing |
-| 4:00–4:40 | **Architecture reveal** — recursive spawn diagram, three Locus primitives, fiscal bounding as the only governor of recursion. Show the depth-2 recorded variant. | Diagram + recording overlay |
-| 4:40–5:00 | **Close** — *"Mitosis isn't an app. It's a primitive. Any task that can be decomposed can run on it. We demoed VC due diligence. Tomorrow it's legal review, code refactoring, scientific literature synthesis. The agent decides."* | Tagline + repo + demo link |
+| 0:00–0:30 | **Hook** — *"Pre-acquisition technical due diligence is a $200k engagement that takes 3 weeks. We're going to do it in 20 minutes for $20."* | Single line on a black slide. Shea & Co logo + price tag → arrow → Mitosis logo + price tag |
+| 0:30–1:15 | **Problem** — every codebase decomposes differently; you can't pre-script the audit. Today firms throw analysts at it for weeks. | Two manual-process diagrams; comparison table from §The Pitch |
+| 1:15–4:00 | **Live demo** — submit "audit this repo" with $5 budget. Watch root spawn. Root scans manifest, deterministically spawns 4 specialists (one per stack). 4 services appear on Locus. Each specialist's Claude decision shown live in monologue stream. Python's Claude says "auth.py is suspect" → spawns deep-analyzer grandchild. JS/Docker/GHA's Claude says "execute directly" → no further spawn. Grandchild finds the SQL injection. Reports flow back. Root synthesizes. Markdown DD report appears on screen. Tree collapses. | Split-screen: live tree visualizer (left) + DD report materializing (right) + Claude's split-decision JSON tooltip-able on hover |
+| 4:00–4:40 | **Architecture reveal** — recursive spawn diagram. Three Locus primitives chained. Two split mechanisms (deterministic + LLM-decided) shown side by side. Fiscal bounding as the only governor of recursion. | Architecture diagram with annotation arrows |
+| 4:40–5:00 | **Close** — *"Mitosis isn't an app, it's a primitive. Codebase DD today. Legal contract review, scientific literature synthesis, regulatory impact analysis — same engine, different prompts. Whatever decomposes, runs on Mitosis."* | Tagline + repo + demo link |
 
 ### Q&A Prep
 
+- **"How do we know the LLM split decision is real and not scripted?"** → The demo shows it both ways. Deterministic split (root → 4 specialists) is rule-based by design, no LLM. Then JS/Docker/GHA specialists' Claude calls return `"action": "execute"` — visible in the monologue stream — while Python's Claude returns `"action": "split"` for auth.py specifically. Same code, different decision per branch, all live.
 - **"What stops infinite recursion?"** → Fiscal substrate. Each split divides the budget. `MIN_BUDGET_FOR_SPLIT = $0.50` forces leaves. `MAX_DEPTH = 4` is belt-and-suspenders, but the wallet is the real bound.
-- **"Cold start of 1-2 min per spawn — isn't that slow?"** → Yes, intentionally. Spawning is expensive, so agents only split when the LLM judges the task genuinely benefits from specialization. Cheap for narrow tasks, slower for big ones — that's the right shape.
+- **"Cold start of 1-2 min per spawn — isn't that slow?"** → Yes, intentionally. Spawning is expensive, so agents only split when the LLM judges the task genuinely benefits from specialization. Cheap for narrow tasks, slower for big ones — that's the right shape. Counter-question: how long does Shea & Co take?
 - **"What if a child crashes mid-task?"** → Reaper in the spawner (60s sweep) force-kills orphaned services and sends synthetic "failed" reports. Parent synthesizes with what it has.
-- **"How is this different from LangGraph / CrewAI?"** → Those are libraries that orchestrate inside one process. Mitosis's agents are *separate deployments* with *separate wallets* and *real OS-level isolation*. No shared state, no shared budget, no shared crash domain. It's the difference between threads and microservices.
-- **"Can grandchildren of children of children work?"** → Demo shows depth 1 live; backup video shows depth 2. Depth 4 has been tested offline (or: "is the configured ceiling — we held back to keep the demo readable").
+- **"How is this different from LangGraph / CrewAI?"** → Those are libraries that orchestrate inside one process. Mitosis's agents are *separate deployments* with *separate wallets* and *real OS-level isolation*. No shared state, no shared budget, no shared crash domain. The difference between threads and microservices — and the reason for-pay platforms like Locus matter.
+- **"Who pays for this?"** → Corp-dev teams running >5 acquisitions/year (current spend on technical DD: $250k–$1M/year). Cyber insurance underwriters (need scalable code risk scoring). Any team auditing a 3rd-party dependency before adoption.
+- **"What's the moat once anyone can use Locus?"** → The architecture, prompt engineering, and trust calibration. The platform is a substrate; the IP is in the orchestration logic and the calibration of split decisions. We're early because no one else is treating BuildWithLocus as a programmable substrate for recursive computation.
 
 ---
 
@@ -570,7 +625,8 @@ For the recorded backup video. Pull endpoint shape from `skill.md`, submit one t
 |---|---|---|---|---|
 | 0 | **Build API auth blocker (Spike 0) cannot be resolved** | M | **Catastrophic** | Read skill.md immediately; Discord ask in parallel; if hard-blocked by Mon noon, fall back to mocked-deploy demo (architecture story still valid, but loses "real Locus" credibility) |
 | 1 | Cold start 1-2 min per spawn makes 6-agent demo take 6-10 min | H | H | Pre-deploy root agent before pitch starts; only the 5 specialists spawn live (parallel, ~2 min total); narrate the wait |
-| 2 | LLM decision (split vs execute) is unreliable / inconsistent | M | M | Stable seed, low temperature, structured output validation; canned task that we know triggers split |
+| 2 | LLM decision (split vs execute) is unreliable / inconsistent | M | M | Stable seed, low temperature, structured output validation. Demo target repo seeded so JS/Docker/GHA branches reliably get "execute" and Python's auth.py reliably gets "split". Pre-rehearse prompts on actual repo content. |
+| 2b | Demo target repo doesn't reliably trigger the asymmetric split pattern (Python splits, others don't) | M | H | Pre-bake the repo: own the file contents. Test the decision prompt on these exact files 10x in a row before pitch — needs >=8/10 correct splits to use live; otherwise switch to a recorded demo segment. |
 | 3 | Recursive spawn from inside a worker fails (Spike 3) | M | **Catastrophic** | Spike 3 IS the early-warning. If it fails, redesign as "central spawner orchestrates all spawns" instead of agent-spawns-agent |
 | 4 | Synthesis quality is bad → memo looks junk | M | M | Strong synthesis prompt with explicit structure; demo memo on a startup with rich public info to reduce dependency on search quality |
 | 5 | Credit grant comes back at $5 not $50 | H | H | $2 fixed + $3 wrapped + buffer = ~$5 minimum demo cost. Possible. If granted only $5, drop synthesis grandchild calls and use template-based synthesis |

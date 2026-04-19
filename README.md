@@ -18,7 +18,9 @@ Three primitives, one substrate for autonomous decomposition:
 
 ## Demo task
 
-Series A investment due diligence. Submit a startup name + budget, watch a tree of specialist agents (market, team, tech, financial, competitive) bloom on Locus, each running its own analysis via wrapped APIs, root synthesizing the final memo as agents self-terminate.
+**Pre-acquisition codebase technical due diligence.** Submit a target repo URL with a budget. The root agent scans the repo manifest and deterministically spawns one specialist per detected stack (Python, JS, Docker, GitHub Actions). Each specialist's LLM autonomously decides whether to execute directly or to spawn a deep-analyzer grandchild for a suspect file. Real depth-3 recursion driven by what the agents actually find. Output: a markdown DD report covering security posture, dependency risks, and code quality.
+
+A $200k engagement done by firms like Shea & Co in 2–4 weeks, executed in 20 minutes for $20.
 
 See [`PLAN.md`](./PLAN.md) for full architecture, build sequence, demo plan, and risk register.
 
