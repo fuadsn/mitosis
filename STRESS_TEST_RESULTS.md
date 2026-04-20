@@ -153,6 +153,38 @@ Best ~$0.05 we'll spend this week.
 
 ---
 
+## Honest Accounting — What's Actually Verified vs. Estimated
+
+The "ALL FOUR PASSED" framing at the top is true but partial. Here's the strict reading:
+
+| Claim | Verified how |
+|---|---|
+| We can authenticate to both Locus APIs | ✅ JWT exchange succeeded; `Bearer claw_*` works on PayWithLocus |
+| We can READ state from Build API | ✅ whoami, projects list, billing balance all returned valid data |
+| We can WRITE to Build API (create services, deploy, delete) | ❌ **Not tested.** Spike 2 covers this. |
+| Wrapped Anthropic actually charges per call | ✅ Promo balance decreased by ~$0.045 across all tests |
+| Decision LLM gives correct split/execute calls | ✅ 5/5 once each — NOT tested for retry variance. Temp was 0.2, not 0. |
+| Decision LLM output is easy to parse | ⚠️ Model wraps responses in ` ```json ` fences — parser must strip |
+| Demo memo will land with VCs | ⚠️ I judged output as "good" subjectively. Unverified by an actual reviewer. |
+| Demo chain used real repo files | ❌ Used seeded string content. Real demo needs Firecrawl/git fetch — untested |
+| `max_tokens: 1500` is sufficient | ❌ Deep-analyzer hit the ceiling mid-response. Will need ~3000+ for real runs |
+| Chain handles partial/failed child reports | ❌ Synthesizer tested only with clean inputs |
+| Cold start is 1-2 min | ❌ Pure docs claim. Not measured. |
+| Demo fits in 5 minutes | ❌ **Pure calculation based on docs, not measured wall-clock.** |
+| Recursive spawn works (agent-from-inside-agent) | ❌ Architectural keystone still unproven — Spike 3 |
+| GHCR public pulls work from Locus | ❌ Not set up or tested |
+
+### Things Monday Must Actually Prove
+
+1. `POST /v1/services` actually provisions a container (Spike 2)
+2. Deployment reaches `healthy` within docs-claimed timing (Spike 2)
+3. An agent running inside a deployed service has the network reach + permissions to call Build API and spawn another agent (Spike 3)
+4. Parallel spawns (4 services at once) don't hit an undocumented rate limit (Spike 3)
+
+Until those four are green, the architecture is validated in the READ direction and the LLM-substrate direction, but not in the actual deploy-and-spawn direction.
+
+---
+
 ## Recommended Next-Session Actions (Mon AM)
 
 1. ~~Resolve Build API auth~~ — DONE
