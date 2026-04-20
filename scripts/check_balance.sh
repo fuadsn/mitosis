@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 source .env
 
 curl -sS "$LOCUS_BASE_URL/api/pay/balance" \
-  -H "Authorization: Bearer $LOCUS_API_KEY" | jq '{
+  -H "Authorization: Bearer $LOCUS_API_KEY" | jq '.data | {
     wallet_address,
     workspace_id,
     usdc_balance,
